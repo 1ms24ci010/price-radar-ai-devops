@@ -1,0 +1,18 @@
+[Unit]
+Description=Price Radar Flask application
+After=network.target
+
+[Service]
+Type=simple
+User=price-radar
+Group=price-radar
+WorkingDirectory={{ app_directory }}
+Environment=APP_HOST=0.0.0.0
+Environment=APP_PORT={{ app_port }}
+Environment=FLASK_DEBUG=0
+Environment=DATABASE_PATH={{ data_directory }}/price_radar.db
+ExecStart={{ app_directory }}/venv/bin/python {{ app_directory }}/app.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

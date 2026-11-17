@@ -1,0 +1,310 @@
+{
+  "name": "Price Radar AI v2 - Reviews and Price Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "price-radar-review-analyzer-v2",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "b2b2c3d4-0001-4000-8000-000000000001",
+      "name": "Review Analysis Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        240
+      ],
+      "webhookId": "price-radar-review-analyzer-v2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ 'Analyze the following product reviews and return a clear evidence-based report. Product: ' + ($json.body.product || 'Unknown product') + '. Source note: ' + ($json.body.source_note || 'Source not specified') + '. Reviews (JSON): ' + JSON.stringify($json.body.reviews || []) }}",
+        "options": {
+          "systemMessage": "You are Price Radar AI, a careful product-review intelligence analyst. Analyze only the review records supplied in the request. Never invent reviews, ratings, counts, percentages, product specifications, or claims. The source may be a demo dataset or an authorized provider; preserve the source note. Identify overall sentiment, recurring strengths, weaknesses, product aspects and recurring complaints. Distinguish evidence from inference. If data is insufficient, say so. Return valid JSON only with this schema: {\"product\":\"string\",\"total_reviews\":number,\"sentiment\":{\"positive\":{\"count\":number,\"percent\":number},\"neutral\":{\"count\":number,\"percent\":number},\"negative\":{\"count\":number,\"percent\":number}},\"average_rating\":number|null,\"strengths\":[\"string\"],\"weaknesses\":[\"string\"],\"aspect_analysis\":[{\"aspect\":\"string\",\"mentions\":number,\"observation\":\"string\"}],\"common_topics\":[{\"topic\":\"string\",\"mentions\":number}],\"verdict\":\"string\",\"summary\":\"string\",\"source_note\":\"string\"}. Percentages must add to 100 allowing rounding. Use integer counts."
+        }
+      },
+      "id": "b2b2c3d4-0002-4000-8000-000000000002",
+      "name": "Product Review AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "b2b2c3d4-0003-4000-8000-000000000003",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        500,
+        470
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"analysis\": $json.output } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b2b2c3d4-0004-4000-8000-000000000004",
+      "name": "Return Review Analysis",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        790,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "price-radar-alert-check-v2",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "b2b2c3d4-0005-4000-8000-000000000005",
+      "name": "Price Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        700
+      ],
+      "webhookId": "price-radar-alert-check-v2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b2b2c3d4-0006-4000-8000-000000000006",
+              "leftValue": "={{ $json.body.alert_triggered }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2b2c3d4-0007-4000-8000-000000000007",
+      "name": "Alert Condition Met?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        470,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"alert_triggered\": true, \"product\": $json.body.product, \"current_price\": $json.body.current_price, \"message\": $json.body.alert_reason || 'Your price alert condition was met.' } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b2b2c3d4-0008-4000-8000-000000000008",
+      "name": "Return Price Alert",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        740,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"alert_triggered\": false, \"product\": $json.body.product, \"current_price\": $json.body.current_price, \"message\": 'Price updated; alert condition not met.' } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b2b2c3d4-0009-4000-8000-000000000009",
+      "name": "Return No Alert",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        740,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "price-radar-email-alert-v1",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "b2b2c3d4-0010-4000-8000-000000000010",
+      "name": "Email Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1040
+      ],
+      "webhookId": "price-radar-email-alert-v1"
+    },
+    {
+      "parameters": {
+        "fromEmail": "",
+        "toEmail": "={{ $json.body.to }}",
+        "subject": "={{ 'Price Radar alert: ' + $json.body.product }}",
+        "emailFormat": "text",
+        "text": "={{ 'Your price alert condition was met.\\n\\nProduct: ' + $json.body.product + '\\nStore: ' + ($json.body.marketplace || 'Not specified') + '\\nPrevious price: \u20b9' + $json.body.previous_price + '\\nCurrent price: \u20b9' + $json.body.current_price + '\\nReason: ' + $json.body.reason + '\\n\\nOpen product: ' + ($json.body.product_url || 'Product link not provided') }}",
+        "options": {}
+      },
+      "id": "b2b2c3d4-0011-4000-8000-000000000011",
+      "name": "Send Price Alert Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        500,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"sent\": true, \"to\": $node['Email Alert Webhook'].json.body.to } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b2b2c3d4-0012-4000-8000-000000000012",
+      "name": "Confirm Email Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        780,
+        1040
+      ]
+    }
+  ],
+  "connections": {
+    "Review Analysis Webhook": {
+      "main": [
+        [
+          {
+            "node": "Product Review AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Product Review AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Return Review Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Product Review AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Price Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "Alert Condition Met?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Condition Met?": {
+      "main": [
+        [
+          {
+            "node": "Return Price Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return No Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send Price Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Price Alert Email": {
+      "main": [
+        [
+          {
+            "node": "Confirm Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b2b2c3d4-0001-4000-8000-000000000099",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

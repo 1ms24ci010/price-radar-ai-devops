@@ -1,0 +1,10 @@
+- name: Configure a Linux host for Price Radar
+  hosts: price_radar
+  become: true
+  vars:
+    app_port: 5000
+    app_directory: /opt/price-radar
+    data_directory: /var/lib/price-radar
+    service_name: price-radar
+  roles:
+    - price_radar

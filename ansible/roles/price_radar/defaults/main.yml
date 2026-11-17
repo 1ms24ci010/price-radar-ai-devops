@@ -1,0 +1,4 @@
+app_port: 5000
+app_directory: /opt/price-radar
+data_directory: /var/lib/price-radar
+service_name: price-radar

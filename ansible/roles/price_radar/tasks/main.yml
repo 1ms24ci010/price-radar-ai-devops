@@ -1,0 +1,72 @@
+- name: Install Python runtime and virtual environment support
+  ansible.builtin.apt:
+    name: [python3, python3-venv, python3-pip]
+    state: present
+    update_cache: true
+
+- name: Create service account
+  ansible.builtin.user:
+    name: price-radar
+    system: true
+    create_home: false
+
+- name: Create application and data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: price-radar
+    group: price-radar
+    mode: "0755"
+  loop:
+    - "{{ app_directory }}"
+    - "{{ data_directory }}"
+
+- name: Copy Flask application and requirements
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../{{ item.src }}"
+    dest: "{{ app_directory }}/{{ item.dest }}"
+    owner: price-radar
+    group: price-radar
+    mode: "0644"
+  loop:
+    - { src: "app.py", dest: "app.py" }
+    - { src: "requirements.txt", dest: "requirements.txt" }
+    - { src: "sample_reviews.csv", dest: "sample_reviews.csv" }
+  notify: Restart Price Radar
+
+- name: Copy application asset directories
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../{{ item }}/"
+    dest: "{{ app_directory }}/{{ item }}/"
+    owner: price-radar
+    group: price-radar
+    mode: "0644"
+    directory_mode: "0755"
+  loop: [templates, static]
+  notify: Restart Price Radar
+
+- name: Create Python virtual environment
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ app_directory }}/venv
+    creates: "{{ app_directory }}/venv/bin/python"
+
+- name: Install Python dependencies
+  ansible.builtin.pip:
+    requirements: "{{ app_directory }}/requirements.txt"
+    virtualenv: "{{ app_directory }}/venv"
+
+- name: Install systemd service definition
+  ansible.builtin.template:
+    src: price-radar.service.j2
+    dest: /etc/systemd/system/{{ service_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Price Radar
+
+- name: Enable and start Price Radar
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
