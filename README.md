@@ -106,3 +106,14 @@ Each pod gets its own ephemeral SQLite database. Do not use this setup for share
 ## Submission
 
 Add the course coordinator as a repository collaborator. Put the repository URL in the report and `repo_link.txt`. Complete the report sections for both components using genuine screenshots and results.
+
+
+
+## Health Check API
+
+The application provides a health check endpoint:
+
+GET /health
+
+It returns the application status and can be used by
+CI/CD pipelines and Kubernetes health probes.
