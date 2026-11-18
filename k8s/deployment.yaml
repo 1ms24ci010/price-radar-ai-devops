@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: price-radar
-          image: price-radar:1.0
+          image: price-radar-ai:1.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000

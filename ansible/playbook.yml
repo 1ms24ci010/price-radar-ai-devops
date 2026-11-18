@@ -1,0 +1,7 @@
+---
+- name: Deploy Price Radar application
+  hosts: price_radar
+  become: true
+
+  roles:
+    - price_radar
