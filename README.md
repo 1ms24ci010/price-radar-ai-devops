@@ -1,119 +1,355 @@
-# Price Radar AI — DevOps Assignment
+# Price Radar AI — DevOps Deployment Project
 
-This repository packages the existing Price Radar AI Flask application for the DevOps coursework. It retains the product watchlist, SQLite-backed price history, target/drop alert rules, in-app notifications, product review analysis, and optional n8n webhook integrations.
+A Flask-based Price Radar AI application used to demonstrate source control, continuous integration, configuration management, containerization, Kubernetes deployment, health checks, and horizontal scaling.
 
-## Important functionality and data-source boundaries
+**GitHub repository:** https://github.com/1ms24ci010/price-radar-ai-devops
 
-- Price changes in this coursework build are recorded through the app's test/manual observation flow; it does not fetch live Amazon, Flipkart, or Myntra prices automatically.
-- The bundled review dataset is synthetic demonstration data. The review analysis endpoint can send it to the configured n8n/Gemini workflow, but it is not a live marketplace review collector.
-- Email delivery is routed through `N8N_EMAIL_WEBHOOK_URL`; actual delivery requires a configured and tested n8n email workflow.
-- Do not commit webhook URLs, credentials, `.env`, or a personal `price_radar.db`. The database is intentionally excluded because it can contain product URLs, watchlist information, notification preferences, and email addresses. A new database is created automatically.
-- Kubernetes replicas use separate ephemeral SQLite files (`emptyDir`). This is adequate for demonstrating replicas, Service routing, health probes and scaling; it is not a production shared-database design.
+---
 
-## Local Windows setup
+## 1. Project Overview
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
-Copy-Item .env.example .env
-python app.py
+This project applies a DevOps workflow to the Price Radar AI application. The source code is maintained in GitHub, Jenkins runs the CI pipeline, Ansible automates host-level application setup, Docker packages the application into an image, and Kubernetes manages the containerized application.
+
+### DevOps workflow
+
+1. **Source control:** Git and GitHub manage the application source and changes.
+2. **Continuous Integration:** Jenkins checks out the repository, installs dependencies, runs the automated test stage, packages the source, and archives the generated artifact.
+3. **Configuration management:** Ansible uses an inventory, playbook, variables, tasks, handler, and role to configure and run the application as a systemd service.
+4. **Containerization:** Docker builds the application image.
+5. **Orchestration:** Kubernetes deploys multiple replicas and exposes the application through a NodePort Service.
+6. **Health and scaling:** Kubernetes liveness/readiness probes check the `/health` endpoint, and the Deployment can be scaled.
+
+---
+
+## 2. Technologies Used
+
+- Python and Flask
+- Git and GitHub
+- Jenkins
+- Docker
+- Ansible
+- Kubernetes
+- YAML
+- Windows PowerShell and Ubuntu on WSL 2
+- Docker Desktop with the `docker-desktop` Kubernetes context
+
+---
+
+## 3. Repository Structure
+
+```text
+Price-Radar-DevOps/
+├── ansible/
+│   ├── inventory.ini
+│   ├── playbook.yml
+│   └── roles/
+│       └── price_radar/
+│           ├── defaults/
+│           │   └── main.yml
+│           ├── handlers/
+│           │   └── main.yml
+│           ├── tasks/
+│           │   └── main.yml
+│           └── templates/
+│               └── price-radar.service.j2
+├── k8s/
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   └── service.yaml
+├── Dockerfile
+├── Jenkinsfile
+├── requirements.txt
+└── README.md
 ```
 
-Open `http://127.0.0.1:5000`. Check `http://127.0.0.1:5000/health`.
+The application source files and any additional static/template directories are kept in the repository alongside these DevOps configuration files.
 
-Run tests:
+---
 
-```powershell
-python -m pytest -v
-```
+## 4. Git and GitHub
 
-## Git workflow evidence
+The project is maintained in a GitHub repository. A feature branch was created for the health-check documentation, and the changes were merged into `main` using a merge commit.
 
-Create real feature branches and merge them into `main` using GitHub pull requests. Suggested sequence:
-
-1. Initial commit: existing Price Radar application and safe repository hygiene.
-2. `feature/health-check-tests`: health endpoint and pytest suite; open and merge a pull request.
-3. `feature/ci-pipeline`: Jenkinsfile and GitHub Actions workflow; open and merge a pull request.
-4. `feature/container-deployment`: Dockerfile and Kubernetes manifests; open and merge a pull request.
-5. `feature/ansible-setup`: Ansible inventory, playbook and role; open and merge a pull request.
-
-Use actual commits as you complete each stage. Do not fabricate commit dates or history.
-
-## Component 1 — CI
-
-### GitHub Actions
-
-The workflow at `.github/workflows/ci.yml` installs Python dependencies and runs pytest on pushes to `main`/`feature/**` and pull requests to `main`.
-
-### Jenkins
-
-Build the Python-enabled Jenkins image using the instructions in `jenkins/README.md`. Create a Pipeline job configured as Pipeline script from SCM, point it to this repository and branch `main`, and enable Poll SCM with `H/1 * * * *`. The `Jenkinsfile` runs tests and archives a source tarball. Push a small change and capture the automatically triggered build.
-
-## Component 2 — Ansible, Docker and Kubernetes
-
-### Docker
-
-```powershell
-docker build -t price-radar:1.0 .
-docker run --rm -p 5000:5000 -v price-radar-data:/data price-radar:1.0
-```
-
-### Ansible
-
-Run from Ubuntu/WSL2 with systemd enabled. From the repository root:
+Useful commands:
 
 ```bash
-sudo apt update
-sudo apt install -y ansible
-cd ansible
-ansible-playbook -i inventory.ini site.yml
+git status
+git branch
+git log --oneline --graph --all
+git checkout -b feature/branch-name
+git add .
+git commit -m "Describe the change"
+git push -u origin feature/branch-name
 ```
 
-The role installs Python, copies the app and assets, creates a virtual environment, installs dependencies, and manages a systemd service. It demonstrates variables, a role and a restart handler.
+The final Ansible and Kubernetes configuration changes were committed and pushed to `main`.
 
-### Kubernetes with Minikube
+---
 
-From PowerShell at the repository root:
+## 5. Jenkins Continuous Integration
+
+Jenkins is configured with a Pipeline job named `Price-Radar-CI`.
+
+### Pipeline configuration
+
+- Pipeline source: GitHub repository
+- Branch: `*/main`
+- Pipeline script path: `Jenkinsfile`
+- SCM polling is configured in the Jenkinsfile to check for repository changes periodically.
+
+### Pipeline stages
+
+The pipeline contains the following stages:
+
+1. **Checkout:** Retrieves the source code from the configured GitHub repository.
+2. **Install dependencies:** Installs the Python packages required by the application.
+3. **Run automated tests:** Executes the project's automated test stage.
+4. **Package application:** Creates a compressed source archive.
+
+The generated `price-radar-source.tar.gz` file is archived as a Jenkins build artifact.
+
+### Running the pipeline
+
+1. Open the Jenkins dashboard.
+2. Select `Price-Radar-CI`.
+3. Select **Build Now** to run the pipeline manually.
+4. Open the build number and inspect **Console Output**.
+5. Confirm that the build finishes successfully.
+6. Open the build's **Artifacts** section to view `price-radar-source.tar.gz`.
+
+---
+
+## 6. Ansible Configuration Management
+
+Ansible is used to configure the local Ubuntu/WSL environment and manage the Price Radar application as a systemd service.
+
+### Inventory
+
+`ansible/inventory.ini`:
+
+```ini
+[price_radar]
+localhost ansible_connection=local
+```
+
+### Playbook
+
+`ansible/playbook.yml`:
+
+```yaml
+---
+- name: Deploy Price Radar application
+  hosts: price_radar
+  become: true
+  roles:
+    - price_radar
+```
+
+### Role components
+
+The `price_radar` role separates deployment configuration into reusable components:
+
+- `defaults/main.yml`: Default variables such as the application port, application directory, data directory, and service name.
+- `tasks/main.yml`: Tasks to install the required runtime, create the service account and directories, deploy application files, create the virtual environment, install dependencies, and configure/start the service.
+- `handlers/main.yml`: Defines the service restart handler.
+- `templates/price-radar.service.j2`: Jinja2 template for the systemd service unit.
+
+The Ansible application port is set to **5001** to avoid a conflict with the already-running application container using port 5000 on the host.
+
+### Run the playbook
+
+From the project directory in Ubuntu/WSL:
+
+```bash
+sudo ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+```
+
+Check the service:
+
+```bash
+sudo systemctl status price-radar
+sudo systemctl is-enabled price-radar
+```
+
+The playbook completed successfully, and the service was reported healthy during verification.
+
+---
+
+## 7. Docker Containerization
+
+Docker packages the Flask application and its runtime dependencies into an image.
+
+The image used by the Kubernetes Deployment is:
+
+```text
+price-radar-ai:1.0
+```
+
+Build the image from the project root (PowerShell or a terminal with Docker access):
 
 ```powershell
-minikube start
-minikube image build -t price-radar:1.0 .
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-kubectl get pods
-kubectl get svc
-kubectl scale deployment/price-radar --replicas=5
-kubectl get pods
-kubectl scale deployment/price-radar --replicas=3
-kubectl get pods
-minikube service price-radar-service
+docker build -t price-radar-ai:1.0 .
 ```
 
-Each pod gets its own ephemeral SQLite database. Do not use this setup for shared production data.
+Verify that the image exists:
 
-## Evidence to capture
+```powershell
+docker image inspect price-radar-ai:1.0 --format "{{.RepoTags}}"
+```
 
-- GitHub branches, commits and merged pull requests.
-- GitHub Actions successful run.
-- Jenkins job configuration, automatic build console output and archived artifact.
-- Ansible playbook successful output.
-- Docker image build and container response.
-- Kubernetes pods at 3, then 5, then 3 replicas; Service output; successful `/health` response.
-- ConfigMap and liveness/readiness probe configuration.
+The expected repository tag is `price-radar-ai:1.0`.
 
-## Submission
+---
 
-Add the course coordinator as a repository collaborator. Put the repository URL in the report and `repo_link.txt`. Complete the report sections for both components using genuine screenshots and results.
+## 8. Kubernetes Deployment
 
+The Kubernetes manifests are stored in the `k8s/` directory. The project was deployed to the Docker Desktop Kubernetes cluster.
 
+### ConfigMap
 
-## Health Check API
+`k8s/configmap.yaml` provides application environment configuration, including:
 
-The application provides a health check endpoint:
+- `APP_HOST`
+- `APP_PORT`
+- `FLASK_DEBUG`
+- `DATABASE_PATH`
 
-GET /health
+### Deployment
 
-It returns the application status and can be used by
-CI/CD pipelines and Kubernetes health probes.
+`k8s/deployment.yaml` defines:
+
+- Deployment name: `price-radar`
+- Initial replica count: `3`
+- Container image: `price-radar-ai:1.0`
+- Container port: `5000`
+- ConfigMap-based environment variables
+- Application data volume mount
+- Liveness and readiness HTTP probes using `/health`
+- CPU and memory requests/limits
+
+The deployment uses `imagePullPolicy: IfNotPresent`, allowing Kubernetes to use the image already available to the local Docker Desktop cluster.
+
+### Service
+
+`k8s/service.yaml` defines a NodePort Service:
+
+- Service name: `price-radar-service`
+- Service type: `NodePort`
+- Service port: `5000`
+- Target port: `5000`
+- Configured NodePort: `30080`
+
+### Apply the manifests
+
+From the project root in PowerShell:
+
+```powershell
+kubectl config current-context
+kubectl get nodes
+kubectl apply -f .\k8s\
+```
+
+Check the resources:
+
+```powershell
+kubectl get deployments
+kubectl get pods
+kubectl get services
+kubectl describe service price-radar-service
+```
+
+---
+
+## 9. Health-check Verification
+
+The application exposes a `/health` endpoint. Kubernetes uses this endpoint for its liveness and readiness probes.
+
+To check the endpoint from inside a running pod:
+
+```powershell
+kubectl get pods
+kubectl exec <pod-name> -- python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5).read().decode())"
+```
+
+The verified response was:
+
+```json
+{"application":"Price Radar AI","status":"healthy"}
+```
+
+To access the Service locally using port forwarding, run:
+
+```powershell
+kubectl port-forward service/price-radar-service 8081:5000
+```
+
+Keep that terminal open. In a second PowerShell window, run:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8081/health
+```
+
+The health endpoint was successfully accessed through this port-forward.
+
+**Networking note:** The Service manifest configures NodePort `30080`, but direct access to `http://localhost:30080/health` from the Windows host was not successful in this setup. Port-forwarding on `8081` was used for the successful host-side health-check demonstration. The NodePort configuration and the port-forward verification are separate facts.
+
+---
+
+## 10. Kubernetes Scaling Demonstration
+
+The Deployment was scaled from three replicas to five and then returned to three replicas.
+
+### Scale from 3 to 5
+
+```powershell
+kubectl scale deployment price-radar --replicas=5
+kubectl rollout status deployment/price-radar
+kubectl get pods
+kubectl get deployments
+```
+
+### Scale from 5 back to 3
+
+```powershell
+kubectl scale deployment price-radar --replicas=3
+kubectl rollout status deployment/price-radar
+kubectl get pods
+kubectl get deployments
+```
+
+The scaling demonstration completed successfully. The final desired replica count is three.
+
+---
+
+## 11. Verification Summary
+
+The following project operations were completed and verified during the assignment:
+
+- Git feature branch and merge workflow.
+- Jenkins pipeline completed successfully.
+- Jenkins archived `price-radar-source.tar.gz`.
+- Ansible playbook completed without failed tasks.
+- Ansible-managed Price Radar service reported healthy.
+- Docker image `price-radar-ai:1.0` was present.
+- Kubernetes Deployment reached three running replicas.
+- Kubernetes Service was created as a NodePort Service.
+- Kubernetes health endpoint returned a healthy response.
+- Kubernetes scaling from 3 to 5 and back to 3 was completed.
+
+---
+
+## 12. Notes and Limitations
+
+- The Ansible service runs on host port `5001` because port `5000` was already occupied in the host environment.
+- The Kubernetes container listens on port `5000`; this is independent of the Ansible host service port.
+- The Kubernetes Deployment currently uses an `emptyDir` volume for `/data`. This is temporary pod storage and is not persistent across pod replacement. It is suitable for this deployment demonstration, but a PersistentVolume and PersistentVolumeClaim would be needed for durable database storage.
+- The Kubernetes Service's NodePort is configured as `30080`. The successful host-side health check was performed using `kubectl port-forward` on local port `8081`.
+- The Jenkins pipeline was confirmed successful when run from the Jenkins job. SCM polling is configured; automatic push-trigger behavior should only be claimed if separately tested.
+
+---
+
+## 13. Repository
+
+**GitHub:** https://github.com/1ms24ci010/price-radar-ai-devops
+
+This repository contains the application and the DevOps configuration used for the assignment.
